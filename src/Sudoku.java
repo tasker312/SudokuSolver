@@ -31,12 +31,12 @@ public class Sudoku {
     }
 
     private int[][] getMapByString(String sudokuString) {
-        int size = (int) Math.sqrt(sudokuString.length());
+        String[] data = sudokuString.split("\\s");
+        int size = (int) Math.sqrt(data.length);
         int[][] sudokuMap = new int[size][size];
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < size; j++) {
-                int currentNumber = Character.getNumericValue(sudokuString.charAt(i * 9 + j));
-                sudokuMap[i][j] = currentNumber != -1 ? currentNumber : 0;
+                sudokuMap[i][j] = Integer.parseInt(data[i * size + j]);
             }
         }
         return sudokuMap;
