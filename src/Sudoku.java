@@ -44,7 +44,7 @@ public class Sudoku {
 
     private Point getFirstEmptyCell() {
         for (int i = 0; i < map.length; i++) {
-            for (int j = 0; j < map[i].length; j++) {
+            for (int j = 0; j < map.length; j++) {
                 if (map[i][j] == 0)
                     return new Point(i, j);
             }
@@ -79,7 +79,7 @@ public class Sudoku {
 
     private Set<Integer> getRowPossibleNumbers(Point point) {
         Set<Integer> possibleNumbers = possibleNumbers();
-        for (int j = 0; j < map[point.getX()].length; j++) {
+        for (int j = 0; j < map.length; j++) {
             possibleNumbers.remove(map[point.getX()][j]);
         }
         return possibleNumbers;
@@ -96,8 +96,9 @@ public class Sudoku {
     private Set<Integer> getSquarePossibleNumbers(Point point) {
         Set<Integer> possibleNumbers = possibleNumbers();
         int square = getSquareByPoint(point);
-        for (int i = square / 3 * 3; i < square / 3 * 3 + 3; i++) {
-            for (int j = square % 3 * 3; j < square % 3 * 3 + 3; j++) {
+        int sqrtSize = (int) Math.sqrt(map.length);
+        for (int i = square / sqrtSize * sqrtSize; i < square / sqrtSize * sqrtSize + sqrtSize; i++) {
+            for (int j = square % sqrtSize * sqrtSize; j < square % sqrtSize * sqrtSize + sqrtSize; j++) {
                 possibleNumbers.remove(map[i][j]);
             }
         }
@@ -105,9 +106,9 @@ public class Sudoku {
     }
 
     private int getSquareByPoint(Point point) {
-        int rowSquare = point.getX() / 3;
-        int columnSquare = point.getY() / 3;
-        return rowSquare * 3 + columnSquare;
+        int rowSquare = point.getX() / (int) Math.sqrt(map.length);
+        int columnSquare = point.getY() / (int) Math.sqrt(map.length);
+        return rowSquare * (int) Math.sqrt(map.length) + columnSquare;
     }
 
     @Override
