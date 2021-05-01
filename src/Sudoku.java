@@ -1,9 +1,10 @@
+import java.awt.Point;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
 public class Sudoku {
-    private final int[][] map;
+    private Cell[][] map;
 
     public Sudoku(String sudokuString) {
         map = getMapByString(sudokuString);
@@ -12,49 +13,100 @@ public class Sudoku {
     }
 
     public void solve() {
-        if (getFirstEmptyCell() == null) {
-            System.out.println("Solved Sudoku:");
-            System.out.println(this.toString());
-            return;
-        }
-        Point currentPoint = getFirstEmptyCell();
-        int[] possibleNumbers = getPointPossibleNumbers(currentPoint);
-        if (possibleNumbers.length > 0) {
-            for (int possibleNumber : possibleNumbers) {
-                map[currentPoint.getX()][currentPoint.getY()] = possibleNumber;
-                solve();
-                if (getFirstEmptyCell() == null)
-                    return;
-            }
-            map[currentPoint.getX()][currentPoint.getY()] = 0;
-        }
+        fillPossibleNumbers();
+        solver(map);
     }
 
-    private int[][] getMapByString(String sudokuString) {
+    private boolean solver(Cell[][] map) {
+        Point currentPoint = getFirstEmptyCell(map);
+        if (currentPoint == null) {
+            this.map = map;
+            System.out.println("Solved Sudoku:");
+            System.out.println(this.toString());
+            return true;
+        }
+        Set<Integer> possibleNumbers = map[currentPoint.x][currentPoint.y].possibleNumbers;
+        if (possibleNumbers.size() > 0 ) {
+            for (int possibleNumber : possibleNumbers) {
+                Cell[][] temp = copyArray(map);
+                temp[currentPoint.x][currentPoint.y].value = possibleNumber;
+                removePossibleNumber(temp, currentPoint);
+                boolean b = solver(temp);
+                if (b)
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    private Cell[][] getMapByString(String sudokuString) {
         String[] data = sudokuString.split("\\s");
         int size = (int) Math.sqrt(data.length);
-        int[][] sudokuMap = new int[size][size];
+        Cell[][] sudokuMap = new Cell[size][size];
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < size; j++) {
-                sudokuMap[i][j] = Integer.parseInt(data[i * size + j]);
+                sudokuMap[i][j] = new Cell(Integer.parseInt(data[i * size + j]), null);
             }
         }
         return sudokuMap;
     }
 
-    private Point getFirstEmptyCell() {
+    private void fillPossibleNumbers() {
         for (int i = 0; i < map.length; i++) {
             for (int j = 0; j < map.length; j++) {
-                if (map[i][j] == 0)
-                    return new Point(i, j);
+                map[i][j].possibleNumbers = getPointPossibleNumbers(new Point(i, j));
             }
         }
-        return null;
     }
 
-    private int[] getPointPossibleNumbers (Point point) {
-        if (map[point.getX()][point.getY()] != 0)
-            return new int[0];
+    private Point getFirstEmptyCell(Cell[][] map) {
+        Point point = null;
+        l1:for (int i = 0; i < map.length; i++) {
+            for (int j = 0; j < map.length; j++) {
+                if (map[i][j].value == 0) {
+                    point = new Point(i, j);
+                    break l1;
+                }
+            }
+        }
+        if (point == null)
+            return null;
+        Cell cell = map[point.x][point.y];
+        for (int i = 0; i < map.length; i++) {
+            for (int j = 0; j < map.length; j++) {
+                if (map[i][j].value == 0 && map[i][j].possibleNumbers.size() < cell.possibleNumbers.size()) {
+                    point = new Point(i, j);
+                    cell = map[i][j];
+                }
+            }
+        }
+        return point;
+    }
+
+    private void removePossibleNumber(Cell[][] map, Point point) {
+        //row
+        int value = map[point.x][point.y].value;
+        for (int j = 0; j < map.length; j++) {
+            map[point.x][j].possibleNumbers.remove(value);
+        }
+        //column
+        for (int i = 0; i < map.length; i++) {
+            map[i][point.y].possibleNumbers.remove(value);
+        }
+        //square
+        int square = getSquareByPoint(point);
+        int sqrtSize = (int) Math.sqrt(map.length);
+        for (int i = square / sqrtSize * sqrtSize; i < square / sqrtSize * sqrtSize + sqrtSize; i++) {
+            for (int j = square % sqrtSize * sqrtSize; j < square % sqrtSize * sqrtSize + sqrtSize; j++) {
+                map[i][j].possibleNumbers.remove(value);
+            }
+        }
+
+    }
+
+    private Set<Integer> getPointPossibleNumbers(Point point) {
+        if (map[point.x][point.y].value != 0)
+            return new HashSet<>();
         Set<Integer> possibleNumbers = possibleNumbers();
 
         //get possible numbers by rules
@@ -66,10 +118,10 @@ public class Sudoku {
         possibleNumbers.retainAll(rowPossibleNumbers);
         possibleNumbers.retainAll(columnPossibleNumbers);
         possibleNumbers.retainAll(squarePossibleNumbers);
-        return possibleNumbers.stream().mapToInt(Integer::intValue).toArray();
+        return possibleNumbers;
     }
 
-    private Set<Integer> possibleNumbers () {
+    private Set<Integer> possibleNumbers() {
         Set<Integer> possibleNumbers = new HashSet<>();
         for (int i = 0; i < map.length; i++) {
             possibleNumbers.add(i + 1);
@@ -80,7 +132,7 @@ public class Sudoku {
     private Set<Integer> getRowPossibleNumbers(Point point) {
         Set<Integer> possibleNumbers = possibleNumbers();
         for (int j = 0; j < map.length; j++) {
-            possibleNumbers.remove(map[point.getX()][j]);
+            possibleNumbers.remove(map[point.x][j].value);
         }
         return possibleNumbers;
     }
@@ -88,7 +140,7 @@ public class Sudoku {
     private Set<Integer> getColumnPossibleNumbers(Point point) {
         Set<Integer> possibleNumbers = possibleNumbers();
         for (int i = 0; i < map.length; i++) {
-            possibleNumbers.remove(map[i][point.getY()]);
+            possibleNumbers.remove(map[i][point.y].value);
         }
         return possibleNumbers;
     }
@@ -99,23 +151,37 @@ public class Sudoku {
         int sqrtSize = (int) Math.sqrt(map.length);
         for (int i = square / sqrtSize * sqrtSize; i < square / sqrtSize * sqrtSize + sqrtSize; i++) {
             for (int j = square % sqrtSize * sqrtSize; j < square % sqrtSize * sqrtSize + sqrtSize; j++) {
-                possibleNumbers.remove(map[i][j]);
+                possibleNumbers.remove(map[i][j].value);
             }
         }
         return possibleNumbers;
     }
 
     private int getSquareByPoint(Point point) {
-        int rowSquare = point.getX() / (int) Math.sqrt(map.length);
-        int columnSquare = point.getY() / (int) Math.sqrt(map.length);
+        int rowSquare = point.x / (int) Math.sqrt(map.length);
+        int columnSquare = point.y / (int) Math.sqrt(map.length);
         return rowSquare * (int) Math.sqrt(map.length) + columnSquare;
+    }
+
+    private static Cell[][] copyArray(Cell[][] map) {
+        Cell[][] temp = new Cell[map.length][map.length];
+        for (int i = 0; i < map.length; i++) {
+            for (int j = 0; j < map.length; j++) {
+                try {
+                    temp[i][j] = (Cell) map[i][j].clone();
+                } catch (CloneNotSupportedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return temp;
     }
 
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < map.length; i++) {
-            sb.append(Arrays.toString(map[i])).append("\n");
+            sb.append(Arrays.toString(map[i]).replaceAll("[,\\[\\]]", "")).append("\n");
         }
         return sb.toString();
     }
